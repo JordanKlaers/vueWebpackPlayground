@@ -1,0 +1,46 @@
+@import '_mixins';
+#container {
+	position: relative;
+	top: calc(50% - 100px);
+	left: calc(50% - 100px);
+	display: inline-grid;
+	grid-template-columns: [start] 50px [c1-end c2-start] 50px [c2-end c3-start] 50px [c3-end c4-start] 50px [end];
+	grid-template-rows: 50px 50px 50px 50px;
+	grid-template-areas: 
+		"green		green		green		salmon"
+		"yellow		turquoise	turquoise	salmon"
+		"yellow		pink		pink		salmon"
+		"yellow		pink		pink		salmon";
+	grid-gap: 10px 10px;
+
+	.item-a {
+		border: no-border-rounded-corners(10);
+		grid-column: green;
+		grid-row: green;
+		background-color: green;
+	}
+	.item-b {
+		border: no-border-rounded-corners(10px);
+		grid-column: yellow;
+		grid-row: yellow;
+		background-color: yellow;
+	}
+	.item-c {
+		border: no-border-rounded-corners(10px);
+		grid-column: turquoise;
+		grid-row: turquoise;
+		background-color: turquoise;
+	}
+	.item-d {
+		border: no-border-rounded-corners(10px);
+		grid-column: pink;
+		grid-row: pink;
+		background-color: pink;
+	}
+	.item-e {
+		border: no-border-rounded-corners(10px);
+		grid-column: salmon;
+		grid-row: salmon;
+		background-color: salmon;
+	}
+}

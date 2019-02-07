@@ -1,0 +1,4 @@
+@mixin no-border-rounded-corners($size) {
+	border: 0px solid transparent;
+	border-radius: $size;
+}

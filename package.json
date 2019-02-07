@@ -1,0 +1,40 @@
+{
+	"name": "web",
+	"version": "1.0.0",
+	"description": "",
+	"private": true,
+	"dependencies": {
+		"css-hot-loader": "^1.4.2",
+		"extract-text-webpack-plugin": "^3.0.2",
+		"lodash": "^4.17.10"
+	},
+	"devDependencies": {
+		"chartist": "^0.11.0",
+		"clean-webpack-plugin": "^0.1.19",
+		"css-loader": "^1.0.0",
+		"file-loader": "^2.0.0",
+		"html-webpack-harddisk-plugin": "^0.2.0",
+		"html-webpack-plugin": "^3.2.0",
+		"node-sass": "^4.9.3",
+		"sass-loader": "^7.1.0",
+		"style-loader": "^0.23.0",
+		"vue": "^2.5.17",
+		"vue-loader": "^14.2.3",
+		"vue-template-compiler": "^2.5.17",
+		"webpack": "^4.19.1",
+		"webpack-cli": "^3.1.0",
+		"webpack-dev-server": "^3.1.8"
+	},
+	"scripts": {
+		"test": "echo \"Error: no test specified\" && exit 1",
+		"start": "webpack-dev-server --open --hot",
+		"watch": "webpack --watch",
+		"build": "webpack"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/JordanKlaers/cssGrid.git"
+	},
+	"author": "",
+	"license": "ISC"
+}
