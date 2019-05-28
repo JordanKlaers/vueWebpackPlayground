@@ -7,22 +7,15 @@ Vue.use(Vuex)
 
 const store = new Vuex.Store({
 	state: {
-		innerValue: null,
-		additionalKey: null,
-		testValue: null,
-		testValueTwo: {
-			innerValue: ''
-		}
+		testValue: null
 	},
 	mutations: {
 		UPDATE_TEST_VALUE(state, payload) {
-			state.innerValue = payload && payload.innerValue
-			state.additionalKey = payload && payload.additionalKey
+			state.testValue = payload;
 		}
 	},
 	getters: {
-		innerValue: state => state.innerValue, 
-		additionalKey: state => state.additionalKey
+		testValue: state => state.testValue, 
 	},
 	modules: {}
 });

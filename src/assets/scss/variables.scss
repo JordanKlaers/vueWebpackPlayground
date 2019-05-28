@@ -3,3 +3,13 @@
 	--background-color: #009CDE;
 	--app-height: 100%;
 }
+$tempVariable1: gray;
+$background-image: url('~_images_/hackerman.jpg');
+
+.hackerman-background-image {
+	background-image: $background-image;
+}
+
+.background-gray {
+	background-color: $tempVariable1;
+}

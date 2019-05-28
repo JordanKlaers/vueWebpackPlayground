@@ -1,7 +1,7 @@
 const path = require('path');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
-const CleanWebpackPlugin = require('clean-webpack-plugin');
 const HtmlWebpackHarddiskPlugin = require('html-webpack-harddisk-plugin');
+const webpack = require('webpack');
 
 function resolve (dir) {
 	return path.join(__dirname, './', dir)
@@ -13,19 +13,35 @@ module.exports = {
 	},
 	devtool: 'inline-source-map',
 	devServer: {
-		contentBase: 'dist/',
-		publicPath: '/dist/',
-		watchContentBase: true,
 		port: 9000,
-		open: true
 	},
 	resolve: {
 		extensions: ['.js', '.vue', '.json', '.scss'],
 		alias: {
 			'src': resolve('src'),
-			'scss': resolve('./src/assets/scss')
+			'_scss_': resolve('./src/assets/scss'),
+			'_images_': resolve('./src/assets/image/')
 		}
 	},
+	// optimization: {
+	// 	runtimeChunk: 'single',
+	// 	splitChunks: {
+	// 		chunks: 'all',
+	// 		cacheGroups: {
+	// 			// lodash: {
+	// 			// 	test: /[\\/]node_modules[\\/](lodash)[\\/]/,
+	// 			// 	name: 'lodash',
+	// 			// 	chunks: 'all',
+	// 			// 	priority: 2
+	// 			// },
+	// 			node: {
+	// 				test: /[\\/]node_modules[\\/]/,
+	// 				name: 'node',
+	// 				chunks: 'all'
+	// 			}
+	// 		}
+	// 	}
+	// },
 	module: {
 		rules: [
 			{
@@ -39,6 +55,10 @@ module.exports = {
 			{
 				test: /\.vue$/,
 				loader: 'vue-loader'
+			},
+			{
+				test: /\.(jpe?g|png|gif|svg)$/i, 
+				loader: "file-loader"
 			}
 		]
 	},
@@ -48,11 +68,12 @@ module.exports = {
 			title: 'Output Management',
 			template: 'src/index.html'
 		}),
-		new HtmlWebpackHarddiskPlugin()
+		new HtmlWebpackHarddiskPlugin(),
+		new webpack.optimize.ModuleConcatenationPlugin()
 	],
 	output: {
 		filename: '[name].bundle.js',
 		path: path.resolve(__dirname, 'dist/'),
-		publicPath: '/dist/'
+		publicPath: '/'
 	}
 };
