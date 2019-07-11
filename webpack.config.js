@@ -25,27 +25,27 @@ module.exports = {
 			'_images_': resolve('./src/assets/image/')
 		}
 	},
-	optimization: {
-		minimizer: [new UglifyJsPlugin(), new TerserPlugin()],
-		runtimeChunk: 'single',
-		usedExports: true,
-		splitChunks: {
-			chunks: 'all',
-			cacheGroups: {
-				lodash: {
-					test: /[\\/]node_modules[\\/](lodash-es)[\\/]/,
-					name: 'lodash',
-					chunks: 'all',
-					priority: 2
-				},
-				node: {
-					test: /[\\/]node_modules[\\/]/,
-					name: 'node',
-					chunks: 'all'
-				}
-			}
-		}
-	},
+	// optimization: {
+	// 	minimizer: [new TerserPlugin()],
+	// 	runtimeChunk: 'single',
+	// 	usedExports: true,
+	// 	splitChunks: {
+	// 		chunks: 'all',
+	// 		cacheGroups: {
+	// 			lodash: {
+	// 				test: /[\\/]node_modules[\\/](lodash-es)[\\/]/,
+	// 				name: 'lodash',
+	// 				chunks: 'all',
+	// 				priority: 2
+	// 			},
+	// 			node: {
+	// 				test: /[\\/]node_modules[\\/]/,
+	// 				name: 'node',
+	// 				chunks: 'all'
+	// 			}
+	// 		}
+	// 	}
+	// },
 	module: {
 		rules: [
 			{
@@ -73,7 +73,9 @@ module.exports = {
 			template: 'src/index.html'
 		}),
 		new HtmlWebpackHarddiskPlugin(),
-		new webpack.optimize.ModuleConcatenationPlugin()
+		// new UglifyJsPlugin(),
+		// new TerserPlugin(),
+		// new webpack.optimize.ModuleConcatenationPlugin()
 	],
 	output: {
 		filename: '[name].bundle.js',
