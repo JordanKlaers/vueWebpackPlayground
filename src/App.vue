@@ -5,15 +5,11 @@
 </template>
 
 <script>
-import Container from './components/container'
 import { mapGetters } from 'vuex'
 import store from './main.js'
 import * as d3 from 'd3';
 export default {
 	name: 'app',
-	components: {
-		Container
-	},
 	data() {
 		return {
 			width: 1000,
@@ -21,8 +17,7 @@ export default {
 		}
 	},
 	mounted() {
-		console.log('earning data', this.earningData, d3);
-
+		//_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_- FORMAT DATA _-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-
 		let years = {};
 		var yearData = [];
 		//group the years in the data with their min and max index of the first and last quarter
@@ -46,7 +41,6 @@ export default {
 			//also, if the last value has data and is Q2, Q3 or Q4, that means it is associated with the precious year, but needs its own grouping
 			let hasValueAndNewYear = this.earningData[years[key][1]-1].value && this.earningData[years[key][1]-1].quarter !== 'q1';
 			if (years[key][1] == this.earningData.length && hasValueAndNewYear) {
-				console.log('key, years', key, years[key]);
 				data[key] = [...years[key]];
 				data[key][1] = data[key][1] - 1
 				yearData.push(data)
@@ -69,16 +63,25 @@ export default {
 			yearIndexValues.push(corresopndingIndex)
 		}
 
+
+		//_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-
+
+
 		var width = 800,
 			height = 400,
 			yAxisXposition = 720,
 			xAxisYposition = 320;
 
 		var extent = d3.extent(this.earningData.map(entry => entry.value)),
-			//extend the min and max to be 10% greater than the values
 			//used on the y axis scale
-			dataMin = Math.floor(extent[0] * 0.9),
-			dataMax = Math.floor(extent[1] * 1.1);
+
+			// find the min and max between the bar and line graph data
+			dataMin = Math.min(Math.floor(extent[0]), Math.floor(this.lineGraphData[0])),
+			dataMax = Math.max(Math.floor(extent[1]), Math.floor(this.lineGraphData[this.lineGraphData.length-1]));
+
+			//extend the min and max to be 10% greater than the range from  min to max
+			dataMin = dataMin - (dataMax - dataMin) * 0.1
+			dataMax = dataMax + (dataMax - dataMin) * 0.1
 
 		var yScale = d3.scaleLinear()
 			.domain([dataMin, dataMax])
@@ -87,32 +90,76 @@ export default {
 			.domain([this.earningData.length, 0])
 			.range([yAxisXposition, 10])
 
+		var lineXScaleConversion = d3.scaleLinear()
+			.domain([0, this.lineGraphData.length])
+			.range([-0.5, this.earningData.length - 1])
+
 		//set the size of the svg
 		var chart = d3.select(".chart")
 			.attr("width", width)
 			.attr("height", height);
+
+
+		//format line g raph data using min and max
+		let formattedLineGraphData = [...this.lineGraphData]
+		//adding the dataMin andmax value to the start and end assists with how the line if filled and the stroke
+		formattedLineGraphData.push(dataMin);
+		formattedLineGraphData.unshift(dataMin);
+
+		//_-_-_-_-_-_-_-_-_-_-_-_-_-_-_- add line and bars_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-
+
+		// append the line graph
+		var lineGraph = d3.line()
+			.x(function(d, i) {
+				//move the position of the first and last value to produce the horizontal line on the beginning and end of the line used for the fill below the line graph
+				if (i === 0) i ++
+				if (i === formattedLineGraphData.length -1) i --
+				return xScale(lineXScaleConversion(i))
+			})
+			.y(function(d) {
+				return yScale(d);
+			});
+		var lineGraphDashArray = `0 ${yScale(formattedLineGraphData[0])- yScale(formattedLineGraphData[1])} `
+
+		//appending the graph path
+		var path = chart.append('path')
+			.data([formattedLineGraphData])
+			.attr('id', 'lineGraph')
+			.attr('d', lineGraph)
+			.attr('stroke-width', '1')
+			.attr('stroke', '#afafff')
+		path.each(function(d) { d.totalLength = this.getTotalLength() })
+			.attr('stroke-dasharray', (d)=> {
+				//the stroke of  the graph line, does not cover the line from 0 to the first value, and from the last value back to 0 (on the Y scale)
+				// yet those values exist because they affect how the line if filled
+				var leftLength = yScale(formattedLineGraphData[0])- yScale(formattedLineGraphData[1])
+				var rightLength = yScale(formattedLineGraphData[formattedLineGraphData.length -1])- yScale(formattedLineGraphData[formattedLineGraphData.length -2])
+				return `0 ${leftLength} ${d.totalLength - leftLength - rightLength} ${rightLength}`
+			})
+			.attr('fill', '#e0f3ff')
 
 		//append the bars
 		var barWidth = 30;
 		var bar = chart.selectAll("g")
 			.data(this.earningData)
 			.enter()
-			.append("rect")
+			.append('g')
+		bar.append("rect")
 			.attr("x", function (d, i) { return xScale(i) + barWidth/2 })
 			.attr("y", function(data, i) { return yScale(data.value)})
 			//style the far right bar
 			.attr("stroke-width", (data, i) => {
-				if (i == this.earningData.length-1) {
-					return '3';
-				}
+				if (i == this.earningData.length-1) return '3';
 				return '0';
 			})
 			.attr("stroke-dasharray", (data, i) => {
-				if (i == this.earningData.length-1) {
-					//starting from the top left corner, go to the bottom right (width + height), empty on the bottom edge so a gap of width, then border up the left side
-					return `${(xAxisYposition - yScale(data.value)) + barWidth} ${barWidth}`;
-				}
+				//starting from the top left corner, go to the bottom right (width + height), empty on the bottom edge so a gap of width, then border up the left side
+				if (i == this.earningData.length-1) return `${(xAxisYposition - yScale(data.value)) + barWidth} ${barWidth}`;
 				return '0';
+			})
+			.attr('class', (data, i) => {
+				if (i == this.earningData.length-1) return `unique-bar`;
+				return '';
 			})
 			.attr('stroke', 'steelblue')
 			.attr("width", barWidth)
@@ -120,21 +167,40 @@ export default {
 				return xAxisYposition - yScale(data.value);
 			});
 
-		//append the Y axis
-		var yAxisLabels = []
-		yAxisLabels.push(dataMax)
+		//appending the textabove the bars
+		bar.append('text')
+			.attr("x", function (d, i) { return xScale(i) + barWidth })
+			.attr("y", function(data, i) { return yScale(data.value) - 8})
+			.attr('text-anchor', 'middle')
+			.attr('fill', (d, i) => {
+				if (i !== this.earningData.length-1) return 'green'
+				return '';
+			})
+			.attr('width', barWidth)
+			.text(d => d.subValue)
+
+
+
+		//_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_appending the axies-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-_-
+
+		//create the values of the labels to be used on the Y axis
+		//forcing a label to exist at the max of the axis, and additional labels below, creating 10 ticks by the interval calculation 
+		var yAxisLabels = [];
+		yAxisLabels.push(dataMax);
 		var labelValue = dataMax;
-		while (labelValue - 20 > dataMin) {
-			labelValue -= 20;
-			yAxisLabels.shift(labelValue);
+		let numberOfTicks = 10;
+		let interval = Math.floor((dataMax - dataMin) / numberOfTicks);
+		while (labelValue - interval > dataMin) {
+			labelValue = labelValue - interval;
+			yAxisLabels.unshift(labelValue);
 		}
 		
+		//append the Y axis
 		chart.append("g")
 			.attr('class', 'y-axis')
 			.attr("transform", `translate(${yAxisXposition},0)`)
 			.call(d3.axisRight(yScale)
-				// .ticks(7)
-				// .tickSize(10)
+				.tickSize(0)
 				.tickValues(yAxisLabels)
 				.tickFormat(data => {
 					console.log('data?', data);
@@ -159,7 +225,7 @@ export default {
 		//append the quarter X axis
 		var quarterLabelIndex = [];
 		var quarterLabels = this.earningData.map((val, indx) => {
-			quarterLabelIndex.push(indx)
+			quarterLabelIndex.push(indx);
 			return val.quarter;
 		})
 		
@@ -168,6 +234,7 @@ export default {
 			.attr('class', 'x-axis')
 			.call(d3.axisBottom(xScale)
 				.tickSize(0)
+				.tickPadding(5)
 				.tickValues(quarterLabelIndex)
 				.tickFormat((data, indx) => {
 					return quarterLabels[indx];
@@ -179,9 +246,9 @@ export default {
 		var line = d3.line()
 			.x(function(d, i) {
 				//custom offset for the start and end of the grouping line between the quarter and year group
-				if (i === 0) d += 0.25
-				if (i === 1) d -= 0.15
-				return xScale(d-1)
+				if (i === 0) d += 0.25;
+				if (i === 1) d -= 0.15;
+				return xScale(d-1);
 			})
 			.y(function(d) {
 				//the group of these lines has its position transformed the same as the other x Axies, so this is the "padding" to place in vertically between the years and quarters
@@ -191,23 +258,24 @@ export default {
 		// these values can also be used to generate a line above the year label
 		yearData.forEach(year => {
 			//the data passed should be the first index and the second index should be the range that the year covers
-			let indexRangeOfYear = [...year[Object.keys(year)[0]]]
+			let indexRangeOfYear = [...year[Object.keys(year)[0]]];
 			//the second value is the difference of the original indices plus 1
-			indexRangeOfYear[1] = indexRangeOfYear[0] + (indexRangeOfYear[1] - indexRangeOfYear[0]) + 1
+			indexRangeOfYear[1] = indexRangeOfYear[0] + (indexRangeOfYear[1] - indexRangeOfYear[0]) + 1;
 			chart.append('path')
 				.data([indexRangeOfYear])
 				.attr('id', 'path')
 				.attr('transform', `translate(0,${xAxisYposition})`)
 				.attr('d', line)
+				.attr("opacity", "0.4")
 				.attr('stroke-width', '1')
-				.attr('stroke', 'steelblue')
+				.attr('stroke', 'black')
 				.attr('fill', 'transparent')
 		})
 
 		//move the quarter labels over so that aling with the center of the bar they represent
 		var X_tickGapWidth = Math.abs((xScale(1) - xScale(2))/2);
 		var xAxisLables = d3.selectAll('.x-axis g text')
-			.attr('transform', `translate(${X_tickGapWidth}, 0)`);
+			.attr('transform', `translate(${X_tickGapWidth}, 0)`)
 
 
 		//append the year X axis label
@@ -229,30 +297,12 @@ export default {
 		var xAxisYearLabels = yearAxis.selectAll('g text')
 			.attr('transform', (data, indx) => {
 				let rangeOfYear = yearData[indx][Object.keys(yearData[indx])[0]];
-				let offSet = Math.abs((xScale(rangeOfYear[0] -1) - xScale(rangeOfYear[1]))/2)
+				let offSet = Math.abs((xScale(rangeOfYear[0] -1) - xScale(rangeOfYear[1]))/2);
 				return `translate(${-offSet},0)`;
 			})
 	},
 	computed: {
-		...mapGetters(['earningData', 'fromStore']),
-		// var bar = chart.selectAll("g")
-		// 	.data(this.earningData)
-		// 	.enter().append("g")
-			// .attr("transform", function(d, i) { return `translate(${i * barThickness}, 0)`; });
-
-		// bar.append("rect")
-		// 	.attr("x", function (d, i) { return i * barThickness })
-		// 	.attr("y", function(data) { return y(data.value) })
-		// 	.attr("width", barThickness - 1)
-		// 	.attr("height", function(data) { return height - y(data.value); });
-
-		// bar.append('text')
-		// 	.attr("x", function (d, i) { return (i * barThickness) + (barThickness / 2) })
-		// 	.attr('y', function (d) { return y(d.value) - 10 })
-		// 	// .attr('style', 'text-anchor: start;')
-		// 	.attr('transform', function (d, i) { return `rotate(45, ${(i * barThickness) + (barThickness / 2)}, ${y(d.value) - 10})` })
-		// 	.text(function(d) { return d.name})
-
+		...mapGetters(['earningData', 'lineGraphData']),
 	},
 	methods: {
 	}
@@ -263,14 +313,12 @@ export default {
 	border: 1px solid gray;
 	rect {
 		fill: steelblue;
-		&:last-of-type {
+		&.unique-bar {
 			fill: transparent;
 		}
 	}
 	text {
-		fill: black;
 		font: 10px sans-serif;
-		// text-anchor: end;
 	}
 }
 </style>
