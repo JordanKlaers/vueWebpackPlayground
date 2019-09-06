@@ -6,6 +6,11 @@ import Vuex from 'vuex'
 Vue.use(Vuex)
 
 const store = new Vuex.Store({
+	mutations: {
+		update(state, payload) {
+			state.storeValue = payload;
+		}
+	},
 	state: {
 		earningsData: [
 			//change the min or max of the bar or line data to see the y axis scale updated accordingly
@@ -33,7 +38,8 @@ const store = new Vuex.Store({
 	},
 	getters: {
 		earningData: (state) => state.earningsData,
-		lineGraphData: (state) => state.lineGraphData
+		lineGraphData: (state) => state.lineGraphData,
+		storeValue: state => state.storeValue
 	},
 	modules: {}
 });
