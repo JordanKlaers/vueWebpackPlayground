@@ -76,6 +76,9 @@ module.exports = {
 		// new UglifyJsPlugin(),
 		// new TerserPlugin(),
 		// new webpack.optimize.ModuleConcatenationPlugin()
+		// new webpack.SourceMapDevToolPlugin({
+		// 	module: true
+		// })
 	],
 	output: {
 		filename: '[name].bundle.js',
