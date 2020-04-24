@@ -231,7 +231,6 @@ export default {
 			}
 		},
 		async fadeSquares() {
-			debugger;
 			let isAnimationCompleted = false;
 			if (this.ctx) {
 				// clear the canvas
