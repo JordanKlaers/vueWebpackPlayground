@@ -15,7 +15,7 @@ module.exports = {
 	},
 	devtool: 'inline-source-map',
 	devServer: {
-		port: 9000,
+		port: 9001,
 	},
 	resolve: {
 		extensions: ['.js', '.vue', '.json', '.scss'],
