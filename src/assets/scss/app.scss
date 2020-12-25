@@ -5,6 +5,7 @@
 body, html {
 	margin: 0px;
 	height: 100%;
+	padding: 0;
 }
 * {
 	box-sizing: border-box;
@@ -12,7 +13,6 @@ body, html {
 
 #app {
 	height: 100%;
-	padding: 30px;
 	background-color: var(--background-color);
 	position: relative;
 }

@@ -13,13 +13,14 @@ module.exports = {
 	},
 	devtool: 'inline-source-map',
 	devServer: {
-		port: 9000,
+		port: 9001,
 	},
 	resolve: {
 		extensions: ['.js', '.vue', '.json', '.scss'],
 		alias: {
 			'src': resolve('src'),
 			'_scss_': resolve('./src/assets/scss'),
+			'_assets_': resolve('./src/assets'),
 			'_images_': resolve('./src/assets/image/')
 		}
 	},
