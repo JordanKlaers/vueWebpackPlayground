@@ -9,7 +9,10 @@ function resolve (dir) {
 
 module.exports = {
 	entry: {
-		app: './src/main.js',
+		app: [
+			'babel-polyfill',
+			'./src/main.js'
+		]
 	},
 	devtool: 'inline-source-map',
 	devServer: {
@@ -56,6 +59,11 @@ module.exports = {
 			{
 				test: /\.vue$/,
 				loader: 'vue-loader'
+			},
+			{
+				test: /\.js$/,
+				loader: 'babel-loader',
+				exclude: /node_modules/
 			},
 			{
 				test: /\.(jpe?g|png|gif|svg)$/i, 

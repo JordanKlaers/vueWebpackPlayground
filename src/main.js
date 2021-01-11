@@ -1,7 +1,7 @@
 'use strict';
 import Vue from 'vue';
 import App from './App';
-import Vuex from 'vuex'
+const Vuex = require('vuex');
 
 Vue.use(Vuex)
 
