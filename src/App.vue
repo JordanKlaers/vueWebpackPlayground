@@ -1,15 +1,27 @@
 <template>
 	<div id="app" ref='app'>
+		<button id="rec">record</button>
 	</div>
 </template>
 
 <script>
 import * as fileSaver from 'file-saver';
+// import * as fs from 'fs';
+const fs = require('fs');
 export default {
 	name: 'app',
+	data() {
+		return {
+			aStream: null,
+			analyser: null,
+			audioBufferLength: null,
+			dataArray: null,
+			myAudio: null
+		}
+	},
 	mounted() {
-		console.log("file saver: ", fileSaver);
-		console.log('THREE', THREE);
+		// console.log("file saver: ", fileSaver);
+		// console.log('THREE', THREE);
 		const scene = new THREE.Scene();
 		const camera = new THREE.PerspectiveCamera( 40, window.innerWidth / window.innerHeight, 0.1, 1000 );
 
@@ -128,8 +140,20 @@ export default {
 			requestAnimationFrame( animate );
 		};
 		animate();
-		console.log(document.getElementsByTagName('canvas')[0]);
-		this.record(document.getElementsByTagName('canvas')[0])
+		const buttonThing = document.querySelector("#rec");
+		this.myAudio = document.querySelector('audio');
+		buttonThing.addEventListener("click", () => {
+			// this.myAudio.play();
+			// console.log('Audio should be playing here');
+			// this.record(document.getElementsByTagName('canvas')[0]);
+		});
+		// buttonThing.click();
+		this.myAudio.oncanplay = (event) => {
+			// this.myAudio.muted = true;
+			this.myAudio.play();
+			console.log('Audio should be playing here');
+			this.record(document.getElementsByTagName('canvas')[0]);
+		};
 	},
 	methods: {
 		map(x, in_min, in_max, out_min, out_max){
@@ -177,10 +201,28 @@ export default {
 			}
 			return p.h * p.oscilation;
 		},
+		initAudioStream(evt) {
+			var audioCtx = new AudioContext();
+			// create a stream from our AudioContext
+			var dest = audioCtx.createMediaStreamDestination();
+			this.aStream = dest.stream;
+			// connect our video element's output to the stream
+			var sourceNode = audioCtx.createMediaElementSource(this.myAudio);
+			sourceNode.connect(dest)
+			// Create a stream from some character device.
+			// const stream = fs.createReadStream('src/assets/Ennja-Matsubayashi.mp3');
+			console.log('stream: ', fs);
+			// this.myAudio.muted = true;
+			// debugger;
+			// this.myAudio.play();
+		},
 		record(canvas, time) {
+			this.initAudioStream();
 			var recordedChunks = [];
+			console.log(this.aStream.getAudioTracks()[0]);
 
 			var stream = canvas.captureStream(25 /*fps*/);
+			stream.addTrack(this.aStream.getAudioTracks()[0]);
 			const mediaRecorder = new MediaRecorder(stream, {
 				mimeType: "video/webm; codecs=vp9"
 			});
@@ -201,14 +243,53 @@ export default {
 				// }
 			}
 
-			mediaRecorder.onstop = function (event) {
+			mediaRecorder.onstop = () => {
 				console.log('stopping');
 				var blob = new Blob(recordedChunks, {
-					type: "video/webm"
+					type: "video/mp4"
 				});
-				// fileSaver(blob);
+				this.myAudio.pause();
+				fileSaver(blob);
 			}
 		}
+	// 	someAudio() {
+	// 		var b = document.querySelector("button");
+	// 		var clicked = false;
+	// 		var chunks = [];
+	// 		var ac = new AudioContext();
+	// 		var osc = ac.createOscillator();
+	// 		var dest = ac.createMediaStreamDestination();
+	// 		var mediaRecorder = new MediaRecorder(dest.stream);
+	// 		osc.connect(dest);
+
+	// 		// b.addEventListener("click", function(e) {
+	// 		// 	if (!clicked) {
+	// 		mediaRecorder.start();
+	// 		osc.start(0);
+	// 		// e.target.textContent = "Stop recording";
+	// 		// clicked = true;
+	// 			// } else {
+	// 		// 		e.target.disabled = true;
+	// 		// 	}
+	// 		// });
+
+	// 		mediaRecorder.ondataavailable = function(evt) {
+	// 			// push each chunk (blobs) in an array
+	// 			chunks.push(evt.data);
+	// 		};
+
+	// 		mediaRecorder.onstop = function(evt) {
+	// 			// Make blob out of our blobs, and open it.
+	// 			var blob = new Blob(chunks, { 'type' : 'audio/mpeg3' });
+	// 			// document.querySelector("audio").src = URL.createObjectURL(blob);
+	// 			fileSaver(blob);
+	// 		};
+			
+	// 		setTimeout(() => {
+	// 			mediaRecorder.stop();
+	// 			osc.stop(0);
+	// 		}, 3000);
+	// 	}
 	}
 };
 </script>

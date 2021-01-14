@@ -80,6 +80,9 @@ module.exports = {
 		new HtmlWebpackHarddiskPlugin(),
 		new webpack.optimize.ModuleConcatenationPlugin()
 	],
+	node: {
+		fs: 'empty'
+	},
 	output: {
 		filename: '[name].bundle.js',
 		path: path.resolve(__dirname, 'dist/'),
