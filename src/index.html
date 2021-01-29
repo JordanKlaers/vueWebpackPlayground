@@ -7,10 +7,130 @@
 	</head>
 	<body>
 		<audio controls id="audio-example">
-			<source src="src/assets/Ennja-Matsubayashi.mp3">
+			<source src="src/assets/sounds/backgroundMusic_org.mp3">
 		</audio>
 		<div id="crazyapp">
-			Starting Text
 		</div>
+		<script type="module">
+/*
+			let container, permalink, hex;
+
+			let camera, cameraTarget, scene, renderer;
+
+			let group, textMesh1, textMesh2, textGeo, materials;
+
+			let firstLetter = true;
+
+			let text = "three.js",
+
+				bevelEnabled = true,
+
+				font = undefined;
+
+			const height = 20,
+				size = 20,
+				hover = 30,
+
+				curveSegments = 4,
+
+				bevelThickness = 2,
+				bevelSize = 1.5;
+
+			const mirror = true;
+
+
+			let windowHalfX = window.innerWidth / 2;
+
+			function init() {
+
+				container = document.createElement( 'div' );
+				document.body.appendChild( container );
+
+				// CAMERA
+
+				camera = new THREE.OrthographicCamera(window.innerWidth / -2, window.innerWidth /2,  window.innerHeight / 2, window.innerHeight / -2, 1, 1000 );
+				camera.position.set( 0, 0, 1000 );
+
+				cameraTarget = new THREE.Vector3( 0, 0, 0 );
+
+				// SCENE
+
+				scene = new THREE.Scene();
+
+				const pointLight = new THREE.AmbientLight( 0xffffff, 1.5 );
+				pointLight.position.set( 0, 0, 90 );
+				scene.add( pointLight );
+
+
+				materials = [
+					new THREE.MeshPhongMaterial( { color: 0xffffff, flatShading: true } ), // front
+					// new THREE.MeshPhongMaterial( { color: 0xffffff } ) // side
+				];
+
+				group = new THREE.Group();
+				group.position.y = 0;
+				group.position.z = 0;
+
+				scene.add( group );
+
+				loadFont();
+
+				// RENDERER
+
+				renderer = new THREE.WebGLRenderer( { antialias: true } );
+				renderer.setPixelRatio( window.devicePixelRatio );
+				renderer.setSize( window.innerWidth, window.innerHeight );
+				container.appendChild( renderer.domElement );
+
+			}
+
+
+			function loadFont() {
+				const loader = new THREE.FontLoader();
+				loader.load( './src/assets/fonts/helvetiker_regular.json', function ( response ) {
+					font = response;
+					createText();
+				} );
+			}
+
+			function createText() {
+				textGeo = new THREE.TextGeometry( text, {
+					font: font,
+					size: size,
+					height: height,
+					curveSegments: curveSegments,
+					bevelThickness: bevelThickness,
+					bevelSize: bevelSize,
+					bevelEnabled: bevelEnabled
+				} );
+
+				textGeo.computeBoundingBox();
+				textGeo.computeVertexNormals();
+
+
+				console.log(textGeo.boundingBox);
+				textMesh1 = new THREE.Mesh( textGeo, materials );
+
+				textMesh1.position.x = 0;
+				textMesh1.position.y = 0;
+				textMesh1.position.z = 0;
+
+				textMesh1.rotation.x = 0;
+				textMesh1.rotation.y = Math.PI * 2;
+
+				group.add( textMesh1 );
+				camera.lookAt( cameraTarget );
+
+				renderer.clear();
+				renderer.render( scene, camera );
+
+			}
+			
+			function animate() {
+				//
+			}
+			init();
+			*/
+		</script>
 	</body>
 </html>

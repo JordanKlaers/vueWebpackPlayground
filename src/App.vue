@@ -1,116 +1,178 @@
 <template>
 	<div id="app" ref='app'>
-		<button id="rec">record</button>
+		<div>
+			Record the Canvas animation and save to and mp4 file
+			<button id="rec">record</button>
+		</div>
+		<div>
+			Stream the Canvas animation to the api and back into a video element
+			<button id="stream">stream</button>
+		</div>
+		<div id="content"></div>
+		<video muted controls style="width: 400px; height: 400px;"></video>
+		<audio id="stream-audio" controls></audio>
 	</div>
 </template>
 
 <script>
 import * as fileSaver from 'file-saver';
-// import * as fs from 'fs';
-const fs = require('fs');
+const io = require("socket.io-client");
 export default {
 	name: 'app',
 	data() {
 		return {
-			aStream: null,
-			analyser: null,
-			audioBufferLength: null,
-			dataArray: null,
-			myAudio: null
+			audioElement: null,
+			mediaRecorder: null,
+			canvas: {},
+			animationStartTime: null,
+			socket: null,
+			canvasElement: null,
+			mimeType: `video/webm; codecs="vp8"`
 		}
 	},
 	mounted() {
-		// console.log("file saver: ", fileSaver);
-		// console.log('THREE', THREE);
-		const scene = new THREE.Scene();
-		const camera = new THREE.PerspectiveCamera( 40, window.innerWidth / window.innerHeight, 0.1, 1000 );
+		//overflow queue for appending data to the MediaSource
+		var queue = [];
+		//create the mediaSource and apply it to the video element
+		var mediaSource = new MediaSource();
+		var url = URL.createObjectURL(mediaSource);
+		const video = document.getElementsByTagName('video')[0];
+		video.src = url;
+		// const audio = document.getElementById('stream-audio');
+		// audio.src = url;
+		var sourceBuffer = null;
+		mediaSource.addEventListener("sourceopen", () => {
+			// NOTE: Browsers are VERY picky about the codec being EXACTLY
+			// right here. Make sure you know which codecs you're using!
+			// sourceBuffer = mediaSource.addSourceBuffer("video/webm; codecs=vp9");
+			sourceBuffer = mediaSource.addSourceBuffer(this.mimeType);
+			sourceBuffer.addEventListener('updateend', function (_) {
+				if (queue.length) {
+					sourceBuffer.appendBuffer(queue.shift());
+				}
+			});
+		});
+		//initiate the connection with the socket. (Used for streaming the canvas feed to the api and back into the video element)
+		this.socket = io.connect('http://localhost:3000', { reconnect: true });
+		let hasFailed = false;
+		let hasLogged = false;
+		this.socket.on('videoStreamToClient', data => {
+			if (!hasFailed) {
+				if (sourceBuffer.updating || queue.length > 0) {
+					//if the source buffer (content to be played) is updating or there is already data in the queue, add to the queue
+					queue.push(data);
+				} else {
+					//if there is no data currently, directly add to the source buffer.
+					sourceBuffer.appendBuffer(data);
+				}
+				video.play();
+			}
+			// } catch(err) {
+			// 	hasFailed = true;
+			// 	console.log('err', data, err );
+			// }
+		});
 
-		const renderer = new THREE.WebGLRenderer();
-		renderer.setSize( window.innerWidth, window.innerHeight );
-		renderer.setPixelRatio( window.devicePixelRatio );
-		this.$refs.app.appendChild( renderer.domElement );
+		document.getElementById('stream').addEventListener('click', () => this.recordAnimation(false));
+		// document.getElementById('stream').addEventListener('click', this.emitSocketEvent);
 
-		const geometry = new THREE.BoxGeometry();
+		this.createInitialCanvasSetUp();
+		this.createInitialCubeOrbitingLight();
+		this.canvasElement = document.getElementsByTagName('canvas')[0];
+		this.canvas.renderer.render( this.canvas.scene, this.canvas.camera );
+		this.canvasAnimate();
 
-		const material = new THREE.MeshLambertMaterial( { color: 0xFFFFFF } );
-		const cube = new THREE.Mesh( geometry, material );
-		scene.add( cube );
+		const buttonThing = document.querySelector("#rec");
+		this.audioElement = document.querySelector('audio');
+		buttonThing && buttonThing.addEventListener("click", () => {
+			let downloading = true;
+			this.audioElement.play();
+			this.recordAnimation(downloading);
+			console.log('Audio should be playing here');
+		});
+		// buttonThing.click();
+		// this.audioElement.oncanplay = (event) => {
+		// 	// this.audioElement.muted = true;
+		// 	this.audioElement.play();
+		// 	// console.log('Audio should be playing here');
+		// 	this.record(document.getElementsByTagName('canvas')[0]);
+		// };
+	},
+	methods: {
+		emitSocketEvent() {
+			console.log('emitting');
+			this.socket.emit('test', '1');
+		},
+		beginStream() {
+			const source = new EventSource('http://localhost:3000/stream');
+			source.onmessage = message => {
+				console.log('Got', message.data);
+			};
+			source.onerror = err => {
+				console.log('crap: ', err);
+			}
+			console.log('source', source);
+		},
+		createInitialCanvasSetUp() {
+			this.canvas['scene'] = new THREE.Scene();
+			this.canvas['camera'] = new THREE.PerspectiveCamera( 40, 1, 0.1, 1000 );
 
-		//create lights
-		var greenLight = new THREE.PointLight( 0x00ff40, 2, 200 );
-		// greenLight.position.set( 3, 0, 0 );
-		const sphereGreen = new THREE.SphereBufferGeometry( 0.5, 16, 8 );
-		greenLight.add( new THREE.Mesh( sphereGreen, new THREE.MeshBasicMaterial( { color: 0x00ff40 } ) ) );
+			this.canvas['renderer'] = new THREE.WebGLRenderer();
+			// this.canvas.renderer.setSize( window.innerWidth, window.innerHeight );
+			// this.canvas.renderer.setPixelRatio( window.devicePixelRatio );
+			this.canvas.renderer.setSize( 600, 600 );
+			this.canvas.renderer.setPixelRatio( window.devicePixelRatio );
+			this.$refs.app.appendChild( this.canvas.renderer.domElement );
+			this.canvas.camera.position.z = 15;
+		},
+		createInitialCubeOrbitingLight() {
+			this.canvas['cubeLights'] = {};
+			const geometry = new THREE.BoxGeometry();
 
-		var pinkLight = new THREE.PointLight( 0xff38ee, 2, 200 );
-		const spherePink = new THREE.SphereBufferGeometry( 0.5, 16, 8 );
-		pinkLight.add( new THREE.Mesh( spherePink, new THREE.MeshBasicMaterial( { color: 0xff38ee } ) ) );
+			const material = new THREE.MeshLambertMaterial( { color: 0xFFFFFF } );
+			this.canvas.cubeLights['cube'] = new THREE.Mesh( geometry, material );
 
-		var yellowLight = new THREE.PointLight( 0xf8ff2e, 2, 200 );
-		const sphereYellow = new THREE.SphereBufferGeometry( 0.5, 16, 8 );
-		yellowLight.add( new THREE.Mesh( sphereYellow, new THREE.MeshBasicMaterial( { color: 0xf8ff2e } ) ) );
-		
-		greenLight.position.set( 3, 0, 0 );
-		pinkLight.position.set( 3, 0, 0 );
-		yellowLight.position.set( 3, 0, 0 );
-		
-		// greenLight.position.set( 3, 0, 0 );
-		// pinkLight.position.set( 0, 3, 0 );
-		// yellowLight.position.set( 0, 0, 3 );
+			this.canvas.scene.add( this.canvas.cubeLights.cube );
 
-		const groupGreen = new THREE.Group();
-		groupGreen.add( greenLight );
-		
-		const groupPink = new THREE.Group();
-		groupPink.add( pinkLight );
-		
-		const groupYellow = new THREE.Group();
-		groupYellow.add( yellowLight );
+			//create lights
+			this.canvas.cubeLights['greenLight'] = new THREE.PointLight( 0x00ff40, 2, 200 );
+			const sphereGreen = new THREE.SphereBufferGeometry( 0.5, 16, 8 );
+			this.canvas.cubeLights.greenLight.add( new THREE.Mesh( sphereGreen, new THREE.MeshBasicMaterial( { color: 0x00ff40 } ) ) );
 
-		scene.add( groupGreen );
-		scene.add( groupPink );
-		scene.add( groupYellow );
+			this.canvas.cubeLights['pinkLight'] = new THREE.PointLight( 0xff38ee, 2, 200 );
+			const spherePink = new THREE.SphereBufferGeometry( 0.5, 16, 8 );
+			this.canvas.cubeLights.pinkLight.add( new THREE.Mesh( spherePink, new THREE.MeshBasicMaterial( { color: 0xff38ee } ) ) );
 
-		camera.position.z = 20;
+			this.canvas.cubeLights['yellowLight'] = new THREE.PointLight( 0xf8ff2e, 2, 200 );
+			const sphereYellow = new THREE.SphereBufferGeometry( 0.5, 16, 8 );
+			this.canvas.cubeLights.yellowLight.add( new THREE.Mesh( sphereYellow, new THREE.MeshBasicMaterial( { color: 0xf8ff2e } ) ) );
+			
+			this.canvas.cubeLights.greenLight.position.set( 3, 0, 0 );
+			this.canvas.cubeLights.pinkLight.position.set( 3, 0, 0 );
+			this.canvas.cubeLights.yellowLight.position.set( 3, 0, 0 );
+			
 
-		cube.rotation.x += 0.5;
-		cube.rotation.y += 0.5;
+			this.canvas.cubeLights['groupGreen'] = new THREE.Group();
+			this.canvas.cubeLights.groupGreen.add( this.canvas.cubeLights.greenLight );
+			this.canvas.cubeLights['groupPink'] = new THREE.Group();
+			this.canvas.cubeLights.groupPink.add( this.canvas.cubeLights.pinkLight );
+			this.canvas.cubeLights['groupYellow'] = new THREE.Group();
+			this.canvas.cubeLights.groupYellow.add( this.canvas.cubeLights.yellowLight );
 
-		var heightStart = 5; //         # m/s
-		var gravity = 10; //         # m/s/s
-		var hmax = heightStart; //      # keep track of the maximum height
-		var physics = {
-			heightStart: 3, //         # m/s
-			currentVelocity: 0, //          # m/s, current velocity
-			gravity: 10, //         # m/s/s
-			t: 0, //          # starting time
-			dt: 0.1, //     # time step
-			rho: 0.7, //     # coefficient of restitution
-			tau: 0.10, //     # contact time for bounce
-			hmax: heightStart, //      # keep track of the maximum height
-			h: heightStart, //
-			hstop: 1.5, //   # stop when bounce is less than 1 cm
-			freefall: true, // # state: freefall or in contact
-			t_last: -Math.sqrt(2*heightStart/gravity), // # time we would have launched to get to heightStart at t=0
-			vmax: Math.sqrt(2 * hmax * gravity),
-			H: [],
-			T: [],
-			oscilation: 1
-		}
-		var physicsOffSet1 = Object.assign({}, JSON.parse(JSON.stringify(physics)));
-		var physicsOffSet2 = Object.assign({}, JSON.parse(JSON.stringify(physics)));
+			this.canvas.scene.add( this.canvas.cubeLights.groupGreen );
+			this.canvas.scene.add( this.canvas.cubeLights.groupPink );
+			this.canvas.scene.add( this.canvas.cubeLights.groupYellow );
 
-		let animationStartTime = null;// Date.now() * 0.001;
-		const rotationTime = 3;
-		const rotationTimeSlow = 10;
-
-		let logPosition = true;
-		console.log("starting the animation!!");
-		const animate = () => {
-			if (!animationStartTime) animationStartTime = Date.now() * 0.001;
-			const time = (Date.now() * 0.001) - animationStartTime;
-			cube.rotation.x += 0.01;
-			cube.rotation.y += 0.01;
+			this.canvas.cubeLights.cube.rotation.x += 0.5;
+			this.canvas.cubeLights.cube.rotation.y += 0.5;
+		},
+		canvasAnimate() {
+			const rotationTime = 3;
+			const rotationTimeSlow = 10;
+			if (!this.animationStartTime) this.animationStartTime = Date.now() * 0.001;
+			const time = (Date.now() * 0.001) - this.animationStartTime;
+			this.canvas.cubeLights.cube.rotation.x += 0.01;
+			this.canvas.cubeLights.cube.rotation.y += 0.01;
 			//degree rotation converted to radian
 			const empty = 0;
 			const oneThird = (2 * Math.PI) / 3;
@@ -124,172 +186,77 @@ export default {
 			const groupRotationB = (this.map(time % rotationTimeSlow, 0, rotationTimeSlow, 0, 360) + 120) * (Math.PI / 180);
 			const groupRotationC = (this.map(time % rotationTimeSlow, 0, rotationTimeSlow, 0, 360) + 240) * (Math.PI / 180);
 			const lightRotation = this.map(time % rotationTime, 0, rotationTime, 0, full);
-			groupGreen.rotation.z = groupRotationA;
-			greenLight.position.z = Math.cos( lightRotation ) * 6;
-			greenLight.position.x = -Math.sin( lightRotation ) * 3;
+			this.canvas.cubeLights.groupGreen.rotation.z = groupRotationA;
+			this.canvas.cubeLights.greenLight.position.z = Math.cos( lightRotation ) * 6;
+			this.canvas.cubeLights.greenLight.position.x = -Math.sin( lightRotation ) * 3;
 
-			groupPink.rotation.z = groupRotationB;
-			pinkLight.position.z = Math.cos( lightRotation + oneThird ) * 6;
-			pinkLight.position.x = -Math.sin( lightRotation + oneThird ) * 3;
+			this.canvas.cubeLights.groupPink.rotation.z = groupRotationB;
+			this.canvas.cubeLights.pinkLight.position.z = Math.cos( lightRotation + oneThird ) * 6;
+			this.canvas.cubeLights.pinkLight.position.x = -Math.sin( lightRotation + oneThird ) * 3;
 			
-			groupYellow.rotation.z = groupRotationC;
-			yellowLight.position.z = Math.cos( lightRotation + twoThirds ) * 6;
-			yellowLight.position.x = -Math.sin( lightRotation + twoThirds ) * 3;
+			this.canvas.cubeLights.groupYellow.rotation.z = groupRotationC;
+			this.canvas.cubeLights.yellowLight.position.z = Math.cos( lightRotation + twoThirds ) * 6;
+			this.canvas.cubeLights.yellowLight.position.x = -Math.sin( lightRotation + twoThirds ) * 3;
 
-			renderer.render( scene, camera );
-			requestAnimationFrame( animate );
-		};
-		animate();
-		const buttonThing = document.querySelector("#rec");
-		this.myAudio = document.querySelector('audio');
-		buttonThing.addEventListener("click", () => {
-			// this.myAudio.play();
-			// console.log('Audio should be playing here');
-			// this.record(document.getElementsByTagName('canvas')[0]);
-		});
-		// buttonThing.click();
-		this.myAudio.oncanplay = (event) => {
-			// this.myAudio.muted = true;
-			this.myAudio.play();
-			console.log('Audio should be playing here');
-			this.record(document.getElementsByTagName('canvas')[0]);
-		};
-	},
-	methods: {
+			this.canvas.renderer.render( this.canvas.scene, this.canvas.camera );
+			requestAnimationFrame( this.canvasAnimate );
+		},
 		map(x, in_min, in_max, out_min, out_max){
 			return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
-		},
-		bounce(p, time) {
-			if (p.freefall) {
-				var hnew = p.h + p.currentVelocity*p.dt - 0.5*p.gravity*p.dt*p.dt;
-				// debugger;
-				if(hnew<0) {
-					p.t = p.t_last + 2*Math.sqrt(2*p.hmax/p.gravity)
-					p.freefall = false
-					p.t_last = p.t + p.tau
-					p.h = 0;
-				} else {
-					p.t = p.t + p.dt
-					p.currentVelocity = p.currentVelocity - p.gravity*p.dt
-					p.h = hnew
-				}
-			} else {
-				//is bouncing so new max height set
-				
-				p.t = p.t + p.tau;
-				p.vmax = p.vmax * p.rho;
-				p.currentVelocity = p.vmax;
-				p.freefall = true;
-				p.h = 0;
-				p.hmax = 0.5*p.vmax*p.vmax/p.gravity;
-				p.H.push(p.h);
-				p.T.push(p.t);
-				p.oscilation = p.oscilation * -1;
-			}
-			// greenLight.position.y = h * oscilation;
-			// greenLight.position.x = Math.cos( time ) * 7.7;
-			if (p.hmax > p.hstop && p.rho < 1) {
-				p.rho = 0.7;
-			} else if (p.rho < 1) {
-				console.log(time);
-				p.rho = 1.3;
-			}
-			if (p.hmax > p.heightStart && p.rho > 1) {
-				p.rho = 0.7;
-			} else {
-				// rho = 1.3;
-			}
-			return p.h * p.oscilation;
 		},
 		initAudioStream(evt) {
 			var audioCtx = new AudioContext();
 			// create a stream from our AudioContext
 			var dest = audioCtx.createMediaStreamDestination();
-			this.aStream = dest.stream;
 			// connect our video element's output to the stream
-			var sourceNode = audioCtx.createMediaElementSource(this.myAudio);
-			sourceNode.connect(dest)
-			// Create a stream from some character device.
-			// const stream = fs.createReadStream('src/assets/Ennja-Matsubayashi.mp3');
-			console.log('stream: ', fs);
-			// this.myAudio.muted = true;
-			// debugger;
-			// this.myAudio.play();
+			var sourceNode = audioCtx.createMediaElementSource(this.audioElement);
+			sourceNode.connect(dest);
+			return dest.stream;
 		},
-		record(canvas, time) {
-			this.initAudioStream();
+		recordAnimation(downloading) {
+			const audio = this.initAudioStream().getAudioTracks()[0];
 			var recordedChunks = [];
-			console.log(this.aStream.getAudioTracks()[0]);
 
-			var stream = canvas.captureStream(25 /*fps*/);
-			stream.addTrack(this.aStream.getAudioTracks()[0]);
-			const mediaRecorder = new MediaRecorder(stream, {
-				mimeType: "video/webm; codecs=vp9"
+			var stream = this.canvasElement.captureStream(60 /*fps*/);
+			
+			if (downloading) {
+				console.log('we are downloading');
+				stream.addTrack(audio);
+			}
+			this.mediaRecorder = new MediaRecorder(stream, {
+				mimeType: this.mimeType//"video/webm; codecs=vp9"
 			});
 
-			//ondataavailable will fire in interval of `time || 4000 ms`
-			mediaRecorder.start(time || 10);
+			//ondataavailable will fire in interval of 10 ms
+			this.mediaRecorder.start(10);
 				
 			setTimeout(() => {
-				mediaRecorder.stop();
-			}, 5000);
+				this.mediaRecorder.stop();
+			}, 3000);
 
-			mediaRecorder.ondataavailable = function (e) {
-				console.log("data avialable");
-				recordedChunks.push(event.data);
-				// if (mediaRecorder.state === 'recording') {
-				// 	// after stop data avilable event run one more time
-				// 	mediaRecorder.stop();
-				// }
+			this.mediaRecorder.ondataavailable = (e) => {
+				recordedChunks.push(e.data);
+				var blob = new Blob([e.data], {
+					type: this.mimeType//"video/webm; codecs=vp9"
+				});
+				if (!downloading) {
+					// console.log('should be emitting');
+					this.socket.emit('streamVideo', blob);
+				}
 			}
 
-			mediaRecorder.onstop = () => {
+			this.mediaRecorder.onstop = () => {
 				console.log('stopping');
 				var blob = new Blob(recordedChunks, {
 					type: "video/mp4"
 				});
-				this.myAudio.pause();
-				fileSaver(blob);
+				this.audioElement.pause();
+				if (downloading) {
+					fileSaver(blob);
+				}
 			}
+				/**/
 		}
-	// 	someAudio() {
-	// 		var b = document.querySelector("button");
-	// 		var clicked = false;
-	// 		var chunks = [];
-	// 		var ac = new AudioContext();
-	// 		var osc = ac.createOscillator();
-	// 		var dest = ac.createMediaStreamDestination();
-	// 		var mediaRecorder = new MediaRecorder(dest.stream);
-	// 		osc.connect(dest);
-
-	// 		// b.addEventListener("click", function(e) {
-	// 		// 	if (!clicked) {
-	// 		mediaRecorder.start();
-	// 		osc.start(0);
-	// 		// e.target.textContent = "Stop recording";
-	// 		// clicked = true;
-	// 			// } else {
-	// 		// 		e.target.disabled = true;
-	// 		// 	}
-	// 		// });
-
-	// 		mediaRecorder.ondataavailable = function(evt) {
-	// 			// push each chunk (blobs) in an array
-	// 			chunks.push(evt.data);
-	// 		};
-
-	// 		mediaRecorder.onstop = function(evt) {
-	// 			// Make blob out of our blobs, and open it.
-	// 			var blob = new Blob(chunks, { 'type' : 'audio/mpeg3' });
-	// 			// document.querySelector("audio").src = URL.createObjectURL(blob);
-	// 			fileSaver(blob);
-	// 		};
-			
-	// 		setTimeout(() => {
-	// 			mediaRecorder.stop();
-	// 			osc.stop(0);
-	// 		}, 3000);
-	// 	}
 	}
 };
 </script>
