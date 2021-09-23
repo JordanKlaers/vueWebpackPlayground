@@ -9,14 +9,18 @@
 			<button id="stream">stream</button>
 		</div>
 		<div id="content"></div>
-		<video muted controls style="width: 400px; height: 400px;"></video>
-		<audio id="stream-audio" controls></audio>
+		<video id ="stream-video" muted controls style="width: 400px; height: 400px;"></video>
+		<!-- <audio id="stream-audio" controls></audio> -->
+		<!-- <video id="file-video" controls src="http://localhost:3003/video"></video> -->
+		<button @click="makeRequest">Make request</button>
+		<button @click="emitSocketEvent" id="testSocket">emit test socket event</button>
 	</div>
 </template>
 
 <script>
 import * as fileSaver from 'file-saver';
 const io = require("socket.io-client");
+const axios = require('axios');
 export default {
 	name: 'app',
 	data() {
@@ -28,6 +32,7 @@ export default {
 			socket: null,
 			canvasElement: null,
 			mimeType: `video/webm; codecs="vp8"`
+			//standard is AAC for audio encoding (dvd) library for aac encoding
 		}
 	},
 	mounted() {
@@ -36,7 +41,7 @@ export default {
 		//create the mediaSource and apply it to the video element
 		var mediaSource = new MediaSource();
 		var url = URL.createObjectURL(mediaSource);
-		const video = document.getElementsByTagName('video')[0];
+		const video = document.getElementById('stream-video');
 		video.src = url;
 		// const audio = document.getElementById('stream-audio');
 		// audio.src = url;
@@ -53,11 +58,22 @@ export default {
 			});
 		});
 		//initiate the connection with the socket. (Used for streaming the canvas feed to the api and back into the video element)
-		this.socket = io.connect('http://localhost:3000', { reconnect: true });
+		this.socket = io.connect('http://localhost:3001', { reconnect: true });
 		let hasFailed = false;
 		let hasLogged = false;
+		
+		var fileReader = new FileReader();
+		fileReader.onload = function() {
+			sourceBuffer.appendBuffer(fileReader.result);
+		};
 		this.socket.on('videoStreamToClient', data => {
-			if (!hasFailed) {
+			console.log('data', data);
+			var blob = new Blob([data], {
+				type: this.mimeType//"video/webm; codecs=vp9"
+			});
+			// debugger;
+			fileReader.readAsArrayBuffer(blob);
+			/* if (!hasFailed) {
 				if (sourceBuffer.updating || queue.length > 0) {
 					//if the source buffer (content to be played) is updating or there is already data in the queue, add to the queue
 					queue.push(data);
@@ -67,6 +83,7 @@ export default {
 				}
 				video.play();
 			}
+			*/
 			// } catch(err) {
 			// 	hasFailed = true;
 			// 	console.log('err', data, err );
@@ -74,7 +91,6 @@ export default {
 		});
 
 		document.getElementById('stream').addEventListener('click', () => this.recordAnimation(false));
-		// document.getElementById('stream').addEventListener('click', this.emitSocketEvent);
 
 		this.createInitialCanvasSetUp();
 		this.createInitialCubeOrbitingLight();
@@ -99,12 +115,18 @@ export default {
 		// };
 	},
 	methods: {
+		async makeRequest() {
+			const test = await axios({
+				method: 'get',
+				url: "http://localhost:3001/test"
+			});
+		},
 		emitSocketEvent() {
 			console.log('emitting');
 			this.socket.emit('test', '1');
 		},
 		beginStream() {
-			const source = new EventSource('http://localhost:3000/stream');
+			const source = new EventSource('http://localhost:3001/stream');
 			source.onmessage = message => {
 				console.log('Got', message.data);
 			};
@@ -218,9 +240,8 @@ export default {
 			var recordedChunks = [];
 
 			var stream = this.canvasElement.captureStream(60 /*fps*/);
-			
+
 			if (downloading) {
-				console.log('we are downloading');
 				stream.addTrack(audio);
 			}
 			this.mediaRecorder = new MediaRecorder(stream, {
@@ -232,7 +253,7 @@ export default {
 				
 			setTimeout(() => {
 				this.mediaRecorder.stop();
-			}, 3000);
+			}, 8000);
 
 			this.mediaRecorder.ondataavailable = (e) => {
 				recordedChunks.push(e.data);
@@ -240,7 +261,6 @@ export default {
 					type: this.mimeType//"video/webm; codecs=vp9"
 				});
 				if (!downloading) {
-					// console.log('should be emitting');
 					this.socket.emit('streamVideo', blob);
 				}
 			}
@@ -251,6 +271,8 @@ export default {
 					type: "video/mp4"
 				});
 				this.audioElement.pause();
+				//testing ffmpeg thingy
+				this.socket.emit('streamVideo', blob);
 				if (downloading) {
 					fileSaver(blob);
 				}
