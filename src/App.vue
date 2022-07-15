@@ -1,7 +1,7 @@
 <template>
 	<div id="app" ref='app'>
 		<div>
-			Record the Canvas animation and save to and mp4 file
+			Record the Canvas animation and save to a mp4 file
 			<button id="rec">record</button>
 		</div>
 		<div>

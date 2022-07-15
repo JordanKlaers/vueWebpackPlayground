@@ -9,7 +9,7 @@ const puppeteer = require('puppeteer');
 	setTimeout(async () => {
 		// console.log(Object.keys(page._client));
 		await page.evaluate(async () => {
-			console.log(document);
+			//console.log(document);
 			function initAudioStream(evt) {
 				var audioCtx = new AudioContext();
 				// create a stream from our AudioContext
